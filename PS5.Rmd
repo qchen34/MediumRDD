@@ -1,0 +1,151 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(formattable)
+library(jtools)
+library(broom)
+library(ggpubr)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(skimr)
+rm(list=ls())
+df <- read_csv("IBM.csv")
+```
+
+```{r cars}
+head(df)
+```
+
+```{r pressure, echo=FALSE}
+
+# initial plot
+df %>% 
+  ggplot(aes(x = TotalWorkingYears,
+             y = MonthlyIncome)) +
+  geom_point(alpha = 0.2) +
+   geom_smooth(data = df %>% filter(TotalWorkingYears < 20),
+              method = 'lm',
+              color = "black" )+
+  geom_smooth(data = df %>% filter(TotalWorkingYears >= 20),
+              method = 'lm',
+              color = "black" )+
+  theme_minimal() 
+
+# create participation column
+df.under_20 <- df %>% filter(TotalWorkingYears < 20)
+df <- df %>% 
+  mutate(Over_20_years = if_else(TotalWorkingYears < 20, 'below', 'higher'))
+
+df <- df %>% 
+  mutate(participation = sample(x = c(0, 1),
+                               size = 1470,
+                               replace = TRUE,
+                               prob = c(0.4, 0.6))) %>%
+  mutate(participation = ifelse(Over_20_years == "below", participation, 999))
+
+
+# create monthly income for next year
+df <- df %>%
+  mutate(nextMonthlyIncome = if_else(participation == 1, 
+                                     MonthlyIncome + MonthlyIncome * 0.5, 
+                                     MonthlyIncome))
+
+df %>% 
+  ggplot(aes(x = TotalWorkingYears,
+             y = nextMonthlyIncome)) +
+  geom_point(alpha = 0.2) +
+   geom_smooth(data = df %>% filter(TotalWorkingYears < 20),
+              method = 'lm',
+              color = "black" )+
+  geom_smooth(data = df %>% filter(TotalWorkingYears >= 20),
+              method = 'lm',
+              color = "black" )+
+  theme_minimal()
+
+# percent of workers that participate (participation rate)
+skim(df$TotalWorkingYears)
+TotalWorkingYears_fac <- as.factor(df$TotalWorkingYears)
+df.po <- df %>%
+  group_by(TotalWorkingYears) %>%
+  summarise(no_rows_years = length(TotalWorkingYears))
+  
+write.csv(df.po, "df_po.csv")
+
+df.po <- read_csv("df_po.csv")
+df.po_cleaned <- df.po[c("percent", "TotalWorkingYears")]
+df.po_cleaned <- na.omit(df.po_cleaned)
+df <- merge(df, df.po_cleaned, by=c("TotalWorkingYears"))
+
+df %>% 
+  ggplot(aes(x = TotalWorkingYears,
+             y = percent)) +
+  geom_point(alpha = 0.2) +
+   geom_smooth(data = df %>% filter(TotalWorkingYears < 20),
+              method = 'lm',
+              color = "black" )+
+  geom_smooth(data = df %>% filter(TotalWorkingYears >= 20),
+              method = 'lm',
+              color = "black" )+
+  theme_minimal()
+
+  
+
+write.csv(df, 'IBM.csv')
+
+df %>% filter(participation != 999) %>%
+  ggplot(aes(x = TotalWorkingYears,
+             y = participation)) + 
+  geom_point(alpha = 0.2)
+
+```
+```{r}
+# the relationship between the training time and workyears
+df %>% 
+  ggplot(aes(x = TrainingTimesLastYear, fill = Over_20_years)) +
+  geom_bar(alpha = 0.2) +
+  theme_minimal()
+
+df %>% 
+  ggplot() +
+  geom_point(aes(x = TotalWorkingYears,
+             y = MonthlyIncome, color = Attrition))
+
+
+# find that most of the Attrition happens under Total Working Years below 20
+df %>% 
+  ggplot(aes(x = Attrition, fill = Over_20_years)) + 
+  geom_bar()
+
+df %>% 
+  ggplot(aes(x = TotalWorkingYears)) +
+  geom_density(alpha = 0.4)
+mean(df$TotalWorkingYears)
+df %>% 
+  ggplot(aes(x = TrainingTimesLastYear)) +
+  geom_bar()
+
+```
+
+```{r}
+attach(df)
+model <- lm(MonthlyIncome ~ Age + YearsWithCurrManager + 
+                  YearsSinceLastPromotion + 
+                  YearsInCurrentRole + 
+                  YearsAtCompany + 
+                  WorkLifeBalance +
+                  TrainingTimesLastYear +
+                  TotalWorkingYears + 
+                  HourlyRate,
+                  data = df)
+
+summary(model)
+```
+
+```{r}
+
+
+```
